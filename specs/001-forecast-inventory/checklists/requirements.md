@@ -2,7 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to implementation planning
 **Created**: 2026-10-26
-**Reviewed**: 2026-11-23 — persistence and local setup addition
+**Reviewed**: 2026-11-23 — persistence, local setup, and Monte Carlo additions
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -46,12 +46,15 @@ Evidence mapping:
 - FR-018 and FR-021: SC-006–007 and known-answer correctness requirements.
 - FR-019–020: SC-001 and explicit checkpoint/deferral boundaries.
 - FR-022–024: Story4, SC-009–010; durable resume, version checks, and clean local setup.
+- FR-025–027: Story5, SC-011–012; seeded paired sampling, exact references, sample-average
+  optimization/regret, numerical-error interpretation and experiment persistence.
 
 Interview changes retained: any product selectable (not restricted to demo examples); built-in data
 first; trend and seasonality included; per-product model search required; weekly decisions; both
 positive user costs; historical sales policy replay; local checkpoint; no extra course constraints.
 
 Technical defaults, including eligibility and four 26-week blocks, are identified as design defaults
-and require the initial intake audit before final-test performance is inspected. The workspace/setup additions were reviewed against all 16 checklist items; runtime acceptance
-remains unverified. No workbook data
-were inspected and no application tests were run during specification/planning.
+and require the initial intake audit before final-test performance is inspected. The workspace/setup
+and Monte Carlo additions were reviewed against all 16 checklist items; runtime acceptance remains
+unverified. No workbook data were inspected and no application tests were run during
+specification/planning.

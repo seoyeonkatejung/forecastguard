@@ -34,7 +34,8 @@ nonnegative integer empirical distribution. Use its entire finite support for ex
 **Rationale**: Inventory costs require more information than interval endpoints. Weekly errors avoid
 an unsupported independence assumption across days; their transferability remains an explicit model
 assumption. Clipping/rounding must be validated after transformation. Exact finite-support arithmetic
-needs no pseudo-random draws. Limited tail support must remain visible.
+needs no pseudo-random draws for primary results; the added Monte Carlo experiment supplies a
+separate numerical comparison. Limited tail support must remain visible.
 **Alternatives considered**: Parametric count models, recursive ETS innovation bootstrap, daily error
 resampling, and treating prediction intervals as distributions. These add assumptions or effort;
 the chosen aggregate-error approximation is not claimed equivalent to an ETS state-space model.
@@ -95,6 +96,24 @@ cloud accounts/sync, and mandatory docs-site tooling. They either fail durable r
 **Scope**: Built-in data first remains; future CSV import must reuse this lifecycle. The original
 checkpoint schedule is not reset by this November 23 design addition. Local workflow estimates and
 clean-environment validation remain to be checked during implementation.
+
+## Monte Carlo statistical computing experiment (added 2026-11-23)
+
+**Decision**: Sample the saved empirical seven-day distribution, using a recorded generator and
+independent repetition streams; compare sizes 100/1,000/10,000 over 100 repetitions. Estimate both
+fixed inventory policies with paired draws, report Monte Carlo errors against exact expectations,
+and compare sampled-objective quantities using exact-model regret. Keep exact optimization primary.
+**Rationale**: Existing exact finite-support results provide a numerical reference for expectation
+estimation and simulation-based optimization. The experiment adds no forecasting family or new
+claim about business savings. More draws address computational error, not an inadequate demand model.
+**Alternatives considered**: Replacing exact expectations with noisy estimates, simulating all
+products/weeks by default, choosing a favorable seed, or treating simulated within-model superiority
+as evidence of generalization. Those choices add expense or misleading interpretation.
+**Sources**: [NumPy Generator](https://numpy.org/doc/stable/reference/random/generator.html),
+[sampling with replacement and weights](https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.choice.html).
+**Scope**: R=100, paired draws, nested sizes within each repetition, support-candidate enumeration,
+and the 2–4 hour implementation estimate are explicit design defaults. Actual runtime and numerical
+results require implementation. Historical held-out policy replay remains the principal comparison.
 
 ## Resolved uncertainties and remaining evidence
 

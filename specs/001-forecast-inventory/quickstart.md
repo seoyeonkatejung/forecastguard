@@ -61,6 +61,21 @@ The root README and `docs/local-setup.md`, `docs/workspaces.md`, and `docs/troub
 planned implementation deliverables. They may later be presented with MkDocs, using the same
 Markdown sources; MkDocs is optional and not required to run the numerical application.
 
+## Planned Monte Carlo validation
+
+After a product analysis has saved supported predictive distributions, use the CLI contract in
+[app-workflow.md](contracts/app-workflow.md) or the inventory view's **Run Monte Carlo experiment**.
+Select one analyzed product and valid Monday origin; use sizes 100/1,000/10,000, 100 repetitions and
+root seed 615. These commands/features are not implemented yet.
+
+Verify exact reference expectations and Monte Carlo means/standard errors for cost, leftovers and
+unmet demand; paired policy cost differences; across-run bias/RMSE/variability; convergence plot;
+and sampled-optimum quantities with exact-model regret. Repeat with identical settings, then a
+new seed. The first repeats the random experiment in the locked environment; the second may change
+simulation results but not forecasts or exact recommendations. Save/restart/reopen must restore the
+experiment. Use fixed-draw fixtures for numerical checks; do not require every random run to be
+closer at larger sizes. Confirm conditional-model and numerical-error labels are visible.
+
 ## Expected outcomes
 
 1. Inspect the preparation report: sheet ranges and row/exclusion counts reconcile; UK product/day
@@ -83,6 +98,9 @@ Markdown sources; MkDocs is optional and not required to run the numerical appli
 8. Follow the save/restart and backup/relocation scenarios above, including two distinct workspaces
    and a simulated interrupted save. Confirm settings, data and valid completed outputs survive,
    stale outputs are withheld, and recovery instructions preserve the last complete state.
+
+9. Complete the Monte Carlo validation above for one supported example. Check no new model fitting
+   occurs, samples use only saved origin-appropriate support, and persisted settings/results restore.
 
 See [data-model.md](data-model.md) and [app-workflow.md](contracts/app-workflow.md) for contracts.
 Implementation evidence is required before marking any of these scenarios passed.

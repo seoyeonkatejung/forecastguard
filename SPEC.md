@@ -42,13 +42,19 @@ clone/install/local-database/run/save/resume guide; MkDocs is optional. CSV impo
 See the added workspace story and technical design below. The original checkpoint schedule is
 historical; this addition does not imply that its deliverables have been implemented.
 
+Monte Carlo addition (November 23): include a bounded seeded experiment for one supported
+product/week, comparing 100/1,000/10,000 draws over 100 repetitions, exact reference expectations,
+paired-policy cost differences, numerical standard errors, and sample-average optimization with
+exact-model regret. Preserve the exact primary recommendation and held-out historical evaluation.
+Persist experiment configuration/results with the workspace; implementation has not started.
+
 ## Product Specification
 
 **Feature Branch**: None created; feature directory is independent of a branch.
 
 **Created**: 2026-10-26
 
-**Last Updated**: 2026-11-23 — local workspace persistence and setup documentation.
+**Last Updated**: 2026-11-23 — workspace persistence, local setup, and Monte Carlo experiments.
 
 **Status**: Interview complete; specified and technically planned; implementation not started.
 
@@ -152,6 +158,34 @@ input file moved elsewhere. Verify the restored settings and completed outputs.
 4. **Given** a fresh repository clone, **When** a user follows the local setup guide, **Then** they
    can create their own local data store, run the app, save work, and resume after a process restart.
 
+#### User Story 5 - Examine Monte Carlo Estimation and Optimization (Priority: P3)
+
+A student or project reviewer selects a supported product/week and compares randomly simulated
+inventory outcomes with exact calculations, demonstrating numerical accuracy, computational
+variability, and simulation-based optimization.
+
+**Why this priority**: This adds an explicit statistical computing experiment with a known reference
+answer, using the demand distribution already needed for inventory decisions.
+
+**Independent Test**: Use a known finite demand distribution and fixed costs; repeat seeded random
+sampling at several sample sizes and check cost estimates, standard errors, and sampled-objective
+optimization against hand calculations and exact expected costs.
+
+**Acceptance Scenarios**:
+
+1. **Given** a supported saved distribution and fixed quantities, **When** the experiment runs,
+   **Then** it estimates cost, leftovers, and unmet demand for both inventory policies at sample
+   sizes 100, 1,000, and 10,000, using the same demand draws for the two policies within each run.
+2. **Given** independent repeated runs, **When** summarized, **Then** the report shows estimates,
+   Monte Carlo standard errors, signed/absolute error against exact expectations, and variability
+   across runs. It does not promise that every individual estimate improves as sample size grows.
+3. **Given** a simulated average-cost objective, **When** minimized over feasible candidate integer
+   quantities, **Then** its selected quantity is compared with the exact quantile solution using
+   exact-model cost regret, without replacing the app's primary recommendation.
+4. **Given** identical saved inputs, random-generator configuration, and locked environment,
+   **When** the experiment is rerun or reopened, **Then** its random samples/results reproduce;
+   changing the experiment seed does not change the fitted forecast or exact recommendation.
+
 #### Edge Cases
 
 - Missing required fields; unparseable dates; noninteger quantities; cancellation invoices;
@@ -166,6 +200,9 @@ input file moved elsewhere. Verify the restored settings and completed outputs.
 
 - Browser refresh, stopped app process, interrupted save, missing source file after preparation,
   moved workspace, incompatible saved-result versions, and two workspaces with different inputs.
+
+- Monte Carlo repetitions with rare support values not sampled, zero estimated standard error,
+  tied sample-optimal quantities, invalid sample settings, and reproducibility after workspace reload.
 
 ### Requirements *(mandatory)*
 
@@ -240,6 +277,22 @@ input file moved elsewhere. Verify the restored settings and completed outputs.
   save/reopen, backup/restore, safe reset, and common errors. The documented fresh-install and
   restart workflow MUST be checked on a clean environment before being described as working.
 
+- **FR-025**: The system MUST provide an on-demand Monte Carlo experiment for one supported product
+  and seven-day decision period. It MUST sample independently with replacement from that origin's
+  saved predictive distribution, estimate both fixed policies' expected cost/leftover/unmet units,
+  and use identical demand draws for paired policy comparisons. The default experiment MUST compare
+  sample sizes 100, 1,000, and 10,000 across 100 independently seeded repetitions.
+- **FR-026**: The experiment MUST report exact reference expectations, Monte Carlo estimates and
+  standard errors, paired cost-difference estimates, repeated-run variability, and a convergence
+  display. It MUST also minimize a sampled average-cost objective over a bounded finite set of
+  nonnegative integer quantities and assess the resulting quantity under the exact distribution.
+  Exact quantile optimization MUST remain the primary stocking recommendation.
+- **FR-027**: Monte Carlo configuration, random-generator identity, seeds/streams, support version,
+  costs, quantities, and results MUST be reproducible and saved with the workspace. Computation
+  MUST respect forecast cutoffs and MUST NOT refit or select forecasting models. Reports MUST
+  distinguish Monte Carlo numerical error from demand/forecast uncertainty and MUST NOT present
+  within-model simulation gains as evidence of better held-out outcomes or verified savings.
+
 #### Key Entities *(include if feature involves data)*
 
 - **Workspace**: Named local collection of prepared data, saved choices, protocol, and compatible
@@ -254,6 +307,8 @@ input file moved elsewhere. Verify the restored settings and completed outputs.
   outcomes.
 - **Policy evaluation**: Matched historical week, observed-sales proxy, and both simulated outcomes.
 - **Monitoring record**: Completed error, EWMA state, frozen limits, and review alert.
+- **Monte Carlo experiment**: Saved predictive support, fixed policies/costs, sample-size and seed
+  configuration, repeated estimates, standard errors, sampled optima, and exact-model regret.
 - **Experiment record**: Dataset and source versions, protocol, configuration, outputs, and limitations.
 
 ### Success Criteria *(mandatory)*
@@ -287,6 +342,14 @@ input file moved elsewhere. Verify the restored settings and completed outputs.
   save, restart, and reopen using only the repository instructions. Two distinct workspaces restore
   their own data/settings, and stale-result and interrupted-save scenarios pass their checks.
 
+- **SC-011**: At least one supported product/week has an experiment covering all three sample sizes
+  and 100 repetitions, with exact references, Monte Carlo errors, standard errors, paired cost
+  differences, and a convergence display. No monotone improvement or policy victory is required.
+- **SC-012**: Fixed-draw numerical fixtures reproduce means and standard errors; small-distribution
+  sampled optima match exhaustive integer search. Their exact expected-cost regret is nonnegative
+  within absolute tolerance 0.00000001. Identical saved random configuration reproduces the
+  experiment in the locked environment, and a new seed leaves primary exact results unchanged.
+
 ### Assumptions
 
 - The intended user manages UK online-order inventory for independent products; no existing stock,
@@ -308,6 +371,10 @@ input file moved elsewhere. Verify the restored settings and completed outputs.
 - Persistence is local to a user's own machine/workspace. Accounts, cross-device synchronization,
   shared multi-user workspaces, and hosted storage are outside this addition. CSV uploads remain
   deferred; future validated imports must use the same managed-workspace lifecycle.
+- Monte Carlo is a bounded statistical computing experiment using the existing empirical weekly
+  distribution. It adds no demand observations or tail support. More draws reduce numerical
+  sampling error, not uncertainty caused by an incorrect demand model. Historical held-out sales
+  replay remains the principal check of policy performance. No new forecasting model is introduced.
 - There are no additional course-rubric constraints. The checkpoint is a working local project;
   public deployment and optional visual dashboards follow only if time remains afterward.
 
@@ -377,7 +444,7 @@ supply the evidence described below.*
 | No future leakage | Four chronological blocks, past-only fitting and eligibility, completed-error bank; mutation tests required. |
 | Explicit metrics | Formulas, units, equal week weights, common comparison weeks, failure counts; no success threshold favoring a method. |
 | Readable Python | Small typed pure functions, SQL separation, thin UI; focused numerical tests. |
-| Course scope | Original 20-hour core plus buffer; new persistence/docs work estimated separately at 3–5 hours; on-demand search and explicit deferrals. |
+| Course scope | Original 20-hour core plus buffer; new persistence/docs at 3–5 hours and Monte Carlo at 2–4 hours, estimated separately; on-demand search and explicit deferrals. |
 
 No constitution exceptions are requested. Poor coverage or unfavorable policy results are findings;
 incorrect calculations, leakage, or omitted failures block valid reporting.
@@ -415,6 +482,7 @@ src/forecastguard/
 ├── evaluation.py
 ├── uncertainty.py
 ├── inventory.py
+├── monte_carlo.py                     # Bounded estimation/optimization experiment
 ├── monitoring.py
 ├── workspace.py                       # Save/open, compatibility checks, managed paths
 └── cli.py
@@ -564,7 +632,9 @@ daily errors. Do not resample independent daily residuals, add daily interval en
 a full distribution from two interval bounds. Display weekly intervals only; daily plots show
 point forecasts without fabricated daily uncertainty bands.
 
-Use the entire empirical support for expectations and scores; no Monte Carlo draws are required.
+Use the entire empirical support for primary expectations and scores. The separate required
+Monte Carlo experiment estimates these same expectations to study numerical sampling error; it
+does not replace the exact primary calculations.
 Define `Q(p)` as the smallest support value whose empirical cumulative probability is at least p.
 Central 80% interval: `[Q(.10), Q(.90)]`; central 95%: `[Q(.025), Q(.975)]`. Include endpoints when
 scoring coverage. Show the support mean as predictive mean and `f_o` separately as model forecast.
@@ -640,6 +710,94 @@ verified business savings, a causal effect, or proof of optimal real-world reple
 No significance test for cost improvement is needed at checkpoint; correlated weekly outcomes
 and small samples make unsupported precision inappropriate.
 
+### Monte Carlo Estimation and Simulation-Based Optimization
+
+**Added 2026-11-23**: Include this bounded statistical computing experiment on demand for one
+supported product and Monday origin at a time, reusing its saved predictive support. This is an
+addition to the original schedule, estimated at 2–4 implementation/verification hours to confirm
+later. Do not run a repeated experiment for every product/test week by default. It does not change
+seven-candidate model search, distribution construction, or the exact primary recommendation.
+
+#### Random sampling and repeated design
+
+Use NumPy `Generator` with an explicitly recorded `PCG64` bit generator and `SeedSequence` root
+seed 615. Spawn 100 child streams, one per independent repetition; record the generator, root seed,
+spawn keys, NumPy version, and sampling algorithm version. Draw with replacement from saved demand
+values and their normalized weights. No extra residual model or parametric demand distribution is
+introduced. Official APIs: [Generator](https://numpy.org/doc/stable/reference/random/generator.html),
+[choice](https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.choice.html).
+
+Default sizes are B=100, 1,000, and 10,000; default repetitions R=100. In each repetition draw 10,000
+values once and use prefixes for the smaller sizes. Repetitions use distinct child streams; sizes
+within a repetition intentionally share nested draws. Use the same draws for both fixed policies
+and for every candidate quantity in that repetition. Never pool nested-size estimates as independent
+repetitions. Settings are explicit design defaults, recorded rather than selected for favorable
+results. Draws must use only the origin's available support, never the future realized outcome.
+
+#### Expectation estimates and Monte Carlo uncertainty
+
+For each fixed quantity q (exact optimizer and eight-week benchmark), draw D_1,...,D_B and compute:
+
+```text
+L_b(q) = max(q - D_b, 0)
+U_b(q) = max(D_b - q, 0)
+C_b(q) = c_o*L_b(q) + c_u*U_b(q)
+MC_mean(g) = mean_b g_b
+MC_SE(g) = sample_standard_deviation(g_b, ddof=1) / sqrt(B)
+paired_delta_b = C_b(q_benchmark) - C_b(q_exact)
+```
+
+Report means and standard errors for cost, leftovers, unmet demand, and paired cost difference.
+The paired standard error uses the standard deviation of `paired_delta_b`, not independent-policy
+standard errors. Compare each estimate with its exact finite-support expectation, recording signed
+and absolute error. For each size summarize bias, RMSE of estimates against the exact expectation,
+and empirical standard deviation across repetitions. Plot cost estimates/errors versus B with exact
+reference lines and across-repetition variability. These are computational diagnostics conditional
+on the fitted distribution, not confidence intervals for true business savings.
+
+A larger B does not guarantee smaller error in every particular realization. Degenerate demand can
+give exact estimates and zero error. A zero sample standard error when rare outcomes were missed is
+not proof of no uncertainty. Show the support count/tail warnings from the base distribution.
+Do not add more Monte Carlo draws to claim better empirical tail information or better forecasting.
+
+#### Sample-average optimization experiment
+
+For each repetition/size, define the feasible candidate set as `{0} union distinct(original demand
+support)`. All candidates are nonnegative integers and at most the largest support value. For the
+piecewise-linear empirical objective a minimizing candidate exists in this set, so there is no
+need to scan a potentially huge integer range or invent a capacity constraint.
+
+Evaluate the mean sampled cost of each candidate using common draws. Choose the smallest minimizing
+quantity `q_MC`; handle floating ties with a documented scale-aware tolerance
+`1e-10 * max(1, abs(minimum_sampled_cost))`. Compare q_MC with q_exact, but judge optimization accuracy
+primarily by `regret = C_exact(q_MC) - C_exact(q_exact)`, since distinct tied quantities can have the
+same optimal cost. Report sample-objective cost, exact-model cost, regret, runtime and objective
+counts. Label sample-objective cost as a training objective; minimizing it does not make it an
+unbiased evaluation of the selected quantity. Exact evaluation supplies the independent reference;
+future extensions could instead use separate evaluation draws.
+
+Keep q_exact as the app's recommendation. Do not choose a forecast model, seed, repetition, or
+primary stocking policy by the best displayed Monte Carlo outcome. Held-out historical sales
+replay remains the principal generalization check; conditional simulated superiority under the
+optimizer's own assumed distribution is not independent evidence of business benefit.
+
+#### Outputs, caching, and scope
+
+Expose an expandable **Monte Carlo experiment** panel within inventory, with an explicit Run action.
+Show B, R, seed, support count, both fixed quantities, exact expectations, simulation summaries,
+convergence plot, and sampled-optimum/regret summary. Withhold the experiment when predictive
+support is unavailable. Cost/seed changes rerun this experiment only, never forecasting.
+Process one repetition at a time to bound memory; record actual runtime instead of promising it.
+
+Save configuration, stream provenance, fixed policies, per-repetition/size summaries, sampled
+optima, aggregate diagnostics, and completion status in a separate immutable experiment bundle.
+Reference its predictive support by hash and source run/origin. Include costs, numerical-code and
+dependency versions, sizes, repetitions, root seed, stream scheme, and support hash in the cache key.
+Keep experiment settings separately hashed from the forecasting protocol. Persist references through
+the workspace save/open lifecycle; a new seed invalidates only the Monte Carlo bundle. Save the
+completed experiment settings as well as result references. Saving large draw arrays is optional if streams reproduce under the locked environment. Do not mark a
+partial experiment complete. Raw customer-level data are not needed for this experiment.
+
 ### Monitoring
 
 Use signed weekly errors `e=actual-model forecast`. Positive errors mean underprediction. Monitor
@@ -676,10 +834,14 @@ settings, and source revision. A separate cost form reruns only inventory calcul
 Each run records code revision or source hash, Python/package versions, raw checksum, SQL and
 protocol hashes, normalized schema, exclusions, candidates and failed fits, origins, cutoff dates,
 daily/weekly predictions, actuals only when observed, error support with source origins, metrics,
-monitor reference and alerts, and inventory costs/decisions. Seeds default to 615 wherever
-randomness is introduced; the primary empirical computations are deterministic. Exact decisions
+monitor reference and alerts, inventory costs/decisions, and Monte Carlo stream/configuration and
+summary artifacts. The Monte Carlo experiment uses recorded seeded streams; primary forecast,
+empirical-distribution, and exact inventory computations remain deterministic. Exact decisions
 and candidate selection must reproduce; floating metrics use `atol=1e-8, rtol=1e-6` in the locked
 reference environment. Record rather than hide cross-platform numerical variation.
+
+The saved workspace additionally records completed Monte Carlo settings and bundle references;
+reopening a compatible experiment restores its results without new draws.
 
 ### Local Workspace Persistence and User Setup
 
@@ -768,6 +930,15 @@ user identity, isolation, and durable storage; the local design makes no cross-d
 - Documentation: follow clone/install/prepare/run/save/reopen from a clean environment and record
   versions and command outcomes. Only mark published commands working after this walkthrough.
 
+- Monte Carlo: deterministic fixed-draw mean/SE and paired-difference fixtures; draws confined to
+  support and shared by both policies; child-stream replay; degenerate support; seed changes do
+  not alter exact recommendations or model choice; snapshot/origin/seed cache invalidation.
+- Sample-average optimization: small fixtures match exhaustive integer search, including ties and
+  zero demand; evaluate every selected q_MC under exact support and verify regret >= -1e-8. Do not
+  assert that every random run improves with B or that every approximate optimizer equals q_exact.
+- Experiment persistence: completed configuration/results survive restart and reproduce with the
+  locked generator environment; missing or partial bundles are not shown as complete.
+
 These are planned checks, not test results from an implemented application.
 
 ### Milestones, Budget, and Risks
@@ -795,9 +966,11 @@ still cannot be met, report the specific incomplete scope rather than quietly cl
 | Nonstationary errors or wholesale orders | Show calibration/test diagnostics and EWMA limitations; no guarantee of reliable demand tails. |
 | Sales censored by unavailable inventory | Disclose availability assumption; simulate only; do not estimate verified lost demand. |
 | Selection optimism and limited test size | Separate test, frozen structure, no outcome-driven retuning or significance claims. |
-| Time budget | Keep local, one horizon, seven candidates, one monitor, one optimizer; defer hosting/CSV/Tableau. |
+| Time budget | Keep local, one horizon, seven models, one monitor and exact optimizer; Monte Carlo runs on demand for one product/week; defer hosting/CSV/Tableau. |
+| Monte Carlo misinterpretation | Show exact references and numerical errors; more draws cannot correct model error or prove business savings. |
 
 ### Complexity Tracking
 
-No constitution violations or extra infrastructure. Empirical expectations and the analytical
-integer quantile solution keep optimization smaller than a solver-based implementation.
+No constitution violations or extra infrastructure. Exact expectations and the integer quantile
+remain the primary solution. A separate bounded Monte Carlo module supplies numerical experiments
+without adding model fits, general-purpose solvers, or a multi-period inventory problem.

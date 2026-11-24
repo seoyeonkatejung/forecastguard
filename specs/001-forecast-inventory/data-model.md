@@ -6,7 +6,7 @@ source checksum and protocol hash directly or through its run identifier.
 
 | Entity | Principal fields | Key and invariants |
 | --- | --- | --- |
-| Workspace | workspace_id, name, schema_version, last_successful_save, relative_database_path, snapshot_id, protocol_hash, selected_product, selected_origin, costs, active_view, completed_run_refs | Local managed directory; atomic versioned manifest; validated choices; relative paths; last complete save survives failures. |
+| Workspace | workspace_id, name, schema_version, last_successful_save, relative_database_path, snapshot_id, protocol_hash, selected_product, selected_origin, costs, active_view, completed_run_refs, completed_MC_settings/refs | Local managed directory; atomic versioned manifest; validated choices; relative paths; last complete save survives failures. |
 | DatasetSnapshot | snapshot_id, source_url, sha256, acquired_at, sheet_audit, coverage_start/end, aliases, exclusion_counts, completeness_assumption | Immutable raw checksum; row counts reconcile with included/excluded categories. |
 | NormalizedTransaction | source_sheet, source_row, invoice_id, product_id, timestamp_local, quantity, country, optional description/price | Source row unique within sheet; invoice/product are not a unique line key. Valid integer quantities; cancellation/return flags preserved during audit. |
 | DailySales | snapshot_id, product_id, date, units, source_row_count, filled_zero | Unique product/date; nonnegative integer units; no pre-first-sale padding. |
@@ -22,6 +22,8 @@ source checksum and protocol hash directly or through its run identifier.
 | MonitoringRecord | product_id, origin, completed_error, centered_error, previous_z, z, review_alert | No update before completion; recurrence matches frozen reference. |
 | InventoryDecision | product_id, origin, cost_overage, cost_underage, alpha, q_opt, q_benchmark, expected_cost/leftover/unmet for both, support_reference, warnings | Costs finite>0; quantities integer>=0; benchmark depends only on eight past weekly totals. |
 | PolicyOutcome | product_id, origin, weekly_sales_proxy, both_quantities, both_costs, both_leftovers, both_unmet, paired_savings | Same historical outcome and costs for both; savings=benchmark-optimized and may be negative. |
+| MonteCarloExperiment | experiment_id, source_run/support_hash, product_id, origin, costs, q_exact, q_benchmark, sample_sizes, repetition_count, bit_generator, root_seed, spawn_keys, stream_scheme, environment_hash, settings_version, completion_status | Past-only support; independent streams across repetitions, nested sizes within a repetition; same draws for paired policies; separate from primary decision. |
+| MonteCarloResult | experiment_id, repetition_id, sample_size, policy_means/SEs, paired_delta_mean/SE, exact_references, signed/absolute_errors, q_MC, sampled_objective, exact_cost_q_MC, regret, runtime | Key experiment/repetition/size; exact-model regret >= -1e-8; q_MC is diagnostic, not the primary recommendation. |
 | RunManifest | run_id, source_revision/hash, python_version, dependency_lock_hash, protocol_hash, snapshot_id, seeds, generated_at, artifacts, runtime | Supports clean rerun; records failures and does not include customer identifiers. |
 
 ## Relationships and lifecycle
@@ -37,7 +39,11 @@ observed total and a CompletedError. Only then may that error enter a later Pred
 A product's validation forecasts produce a ModelSelection, after which its selected structure stays
 fixed for test. Pre-test errors generate MonitoringReference; completed test errors update records.
 PredictiveSupport plus entered costs yields InventoryDecision. A later completed sales week yields
-PolicyOutcome. RunManifest ties the full chain together.
+PolicyOutcome. A saved support and fixed costs/policies can also produce a MonteCarloExperiment
+and per-size/repetition results; it never refits the forecast or modifies the primary decision.
+Workspace state stores completed experiment settings/references. Seed changes affect only that
+experiment; source/protocol/origin changes require compatible support before any reuse.
+RunManifest ties the full chain together.
 
 Unavailable is a first-class state: `history_only`, `point_only`, `ready`, or `failed`, with reasons.
 A cost-only change creates different decisions/outcomes against existing supports, not a different

@@ -32,6 +32,23 @@ Cost validation errors identify the field and required condition. Data, eligibil
 name their cause, rather than displaying an empty plot or zero metric. Partial weeks are marked
 unscored. Historical forecasts are not labeled current-year forecasts.
 
+## Monte Carlo experiment panel
+
+Within inventory, expose **Run Monte Carlo experiment** for the current supported product/week.
+Display defaults B=100/1,000/10,000, R=100, root seed 615, and the saved distribution identity. The
+panel uses current validated costs. No experiment runs automatically for the full product catalog.
+
+Show exact expected outcomes alongside Monte Carlo means/standard errors for both fixed policies,
+paired cost-difference estimates, repeated-run variability, and a convergence/error plot. A separate
+sample-average optimization summary shows q_MC, exact q, sample-objective cost, exact-model cost
+and regret. The main recommended quantity remains exact q. Changing experiment settings does not
+change model selection, forecasts, or the exact recommendation. Restore completed settings/results
+from the workspace; stale or partial experiments require an explicit rerun.
+
+Persistent experiment explanation: simulated estimates are conditional on the forecast distribution;
+Monte Carlo standard errors concern numerical sampling, not real-demand uncertainty or verified
+savings. A larger draw count is not additional historical evidence.
+
 ## Workspace workflow
 
 - On startup, open the configured local workspace or offer **Create/Open workspace**. After first
@@ -59,6 +76,12 @@ exist in the repository yet:
 - `python -m forecastguard.cli analyze --demo --overage-cost 1 --underage-cost 3`: choose three
   examples using initial-block ranking only and analyze without test-driven replacement.
 
+- `python -m forecastguard.cli monte-carlo --product CODE --origin YYYY-MM-DD --overage-cost VALUE
+  --underage-cost VALUE --seed 615 --sizes 100 1000 10000 --repetitions 100`: open a supported
+  already-analyzed origin and save the bounded experiment; never fit models silently. The interface
+  uses the same numerical functions. Reject unsupported origins, nonpositive costs, sizes <2,
+  repetitions <2, and noninteger/negative seeds with an explained status. Defaults match the plan.
+
 All commands accept `--workspace PATH`, defaulting to `workspaces/default`. `prepare` copies the
 source snapshot and creates the file-backed `sales.duckdb`; a repeated prepare with the same checksum
 and protocol reuses compatible prepared data. A changed source creates a new snapshot and invalidates
@@ -81,7 +104,9 @@ reason. Units and metric definitions accompany exports. Do not publish invoice-l
 
 The containing workspace also includes its managed source, `sales.duckdb`, and atomically saved
 `workspace.json`, with the fields and compatibility rules in the data model. Analysis bundles under
-`runs/` are complete and immutable before the manifest references them.
+`runs/` are complete and immutable before the manifest references them. Completed Monte Carlo
+bundles hold generator/stream/settings metadata, source-support identity, per-repetition results and
+summaries; the workspace remembers their settings and references separately from primary analyses.
 
 Scope has no CSV-import contract yet. A future upload feature must define its own schema and
 validation before implementation; do not silently expose arbitrary workbook or query execution.

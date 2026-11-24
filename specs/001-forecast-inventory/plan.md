@@ -64,7 +64,7 @@ supply the evidence described below.*
 | No future leakage | Four chronological blocks, past-only fitting and eligibility, completed-error bank; mutation tests required. |
 | Explicit metrics | Formulas, units, equal week weights, common comparison weeks, failure counts; no success threshold favoring a method. |
 | Readable Python | Small typed pure functions, SQL separation, thin UI; focused numerical tests. |
-| Course scope | Original 20-hour core plus buffer; new persistence/docs work estimated separately at 3–5 hours; on-demand search and explicit deferrals. |
+| Course scope | Original 20-hour core plus buffer; new persistence/docs at 3–5 hours and Monte Carlo at 2–4 hours, estimated separately; on-demand search and explicit deferrals. |
 
 No constitution exceptions are requested. Poor coverage or unfavorable policy results are findings;
 incorrect calculations, leakage, or omitted failures block valid reporting.
@@ -102,6 +102,7 @@ src/forecastguard/
 ├── evaluation.py
 ├── uncertainty.py
 ├── inventory.py
+├── monte_carlo.py                     # Bounded estimation/optimization experiment
 ├── monitoring.py
 ├── workspace.py                       # Save/open, compatibility checks, managed paths
 └── cli.py
@@ -251,7 +252,9 @@ daily errors. Do not resample independent daily residuals, add daily interval en
 a full distribution from two interval bounds. Display weekly intervals only; daily plots show
 point forecasts without fabricated daily uncertainty bands.
 
-Use the entire empirical support for expectations and scores; no Monte Carlo draws are required.
+Use the entire empirical support for primary expectations and scores. The separate required
+Monte Carlo experiment estimates these same expectations to study numerical sampling error; it
+does not replace the exact primary calculations.
 Define `Q(p)` as the smallest support value whose empirical cumulative probability is at least p.
 Central 80% interval: `[Q(.10), Q(.90)]`; central 95%: `[Q(.025), Q(.975)]`. Include endpoints when
 scoring coverage. Show the support mean as predictive mean and `f_o` separately as model forecast.
@@ -327,6 +330,94 @@ verified business savings, a causal effect, or proof of optimal real-world reple
 No significance test for cost improvement is needed at checkpoint; correlated weekly outcomes
 and small samples make unsupported precision inappropriate.
 
+## Monte Carlo Estimation and Simulation-Based Optimization
+
+**Added 2026-11-23**: Include this bounded statistical computing experiment on demand for one
+supported product and Monday origin at a time, reusing its saved predictive support. This is an
+addition to the original schedule, estimated at 2–4 implementation/verification hours to confirm
+later. Do not run a repeated experiment for every product/test week by default. It does not change
+seven-candidate model search, distribution construction, or the exact primary recommendation.
+
+### Random sampling and repeated design
+
+Use NumPy `Generator` with an explicitly recorded `PCG64` bit generator and `SeedSequence` root
+seed 615. Spawn 100 child streams, one per independent repetition; record the generator, root seed,
+spawn keys, NumPy version, and sampling algorithm version. Draw with replacement from saved demand
+values and their normalized weights. No extra residual model or parametric demand distribution is
+introduced. Official APIs: [Generator](https://numpy.org/doc/stable/reference/random/generator.html),
+[choice](https://numpy.org/doc/stable/reference/random/generated/numpy.random.Generator.choice.html).
+
+Default sizes are B=100, 1,000, and 10,000; default repetitions R=100. In each repetition draw 10,000
+values once and use prefixes for the smaller sizes. Repetitions use distinct child streams; sizes
+within a repetition intentionally share nested draws. Use the same draws for both fixed policies
+and for every candidate quantity in that repetition. Never pool nested-size estimates as independent
+repetitions. Settings are explicit design defaults, recorded rather than selected for favorable
+results. Draws must use only the origin's available support, never the future realized outcome.
+
+### Expectation estimates and Monte Carlo uncertainty
+
+For each fixed quantity q (exact optimizer and eight-week benchmark), draw D_1,...,D_B and compute:
+
+```text
+L_b(q) = max(q - D_b, 0)
+U_b(q) = max(D_b - q, 0)
+C_b(q) = c_o*L_b(q) + c_u*U_b(q)
+MC_mean(g) = mean_b g_b
+MC_SE(g) = sample_standard_deviation(g_b, ddof=1) / sqrt(B)
+paired_delta_b = C_b(q_benchmark) - C_b(q_exact)
+```
+
+Report means and standard errors for cost, leftovers, unmet demand, and paired cost difference.
+The paired standard error uses the standard deviation of `paired_delta_b`, not independent-policy
+standard errors. Compare each estimate with its exact finite-support expectation, recording signed
+and absolute error. For each size summarize bias, RMSE of estimates against the exact expectation,
+and empirical standard deviation across repetitions. Plot cost estimates/errors versus B with exact
+reference lines and across-repetition variability. These are computational diagnostics conditional
+on the fitted distribution, not confidence intervals for true business savings.
+
+A larger B does not guarantee smaller error in every particular realization. Degenerate demand can
+give exact estimates and zero error. A zero sample standard error when rare outcomes were missed is
+not proof of no uncertainty. Show the support count/tail warnings from the base distribution.
+Do not add more Monte Carlo draws to claim better empirical tail information or better forecasting.
+
+### Sample-average optimization experiment
+
+For each repetition/size, define the feasible candidate set as `{0} union distinct(original demand
+support)`. All candidates are nonnegative integers and at most the largest support value. For the
+piecewise-linear empirical objective a minimizing candidate exists in this set, so there is no
+need to scan a potentially huge integer range or invent a capacity constraint.
+
+Evaluate the mean sampled cost of each candidate using common draws. Choose the smallest minimizing
+quantity `q_MC`; handle floating ties with a documented scale-aware tolerance
+`1e-10 * max(1, abs(minimum_sampled_cost))`. Compare q_MC with q_exact, but judge optimization accuracy
+primarily by `regret = C_exact(q_MC) - C_exact(q_exact)`, since distinct tied quantities can have the
+same optimal cost. Report sample-objective cost, exact-model cost, regret, runtime and objective
+counts. Label sample-objective cost as a training objective; minimizing it does not make it an
+unbiased evaluation of the selected quantity. Exact evaluation supplies the independent reference;
+future extensions could instead use separate evaluation draws.
+
+Keep q_exact as the app's recommendation. Do not choose a forecast model, seed, repetition, or
+primary stocking policy by the best displayed Monte Carlo outcome. Held-out historical sales
+replay remains the principal generalization check; conditional simulated superiority under the
+optimizer's own assumed distribution is not independent evidence of business benefit.
+
+### Outputs, caching, and scope
+
+Expose an expandable **Monte Carlo experiment** panel within inventory, with an explicit Run action.
+Show B, R, seed, support count, both fixed quantities, exact expectations, simulation summaries,
+convergence plot, and sampled-optimum/regret summary. Withhold the experiment when predictive
+support is unavailable. Cost/seed changes rerun this experiment only, never forecasting.
+Process one repetition at a time to bound memory; record actual runtime instead of promising it.
+
+Save configuration, stream provenance, fixed policies, per-repetition/size summaries, sampled
+optima, aggregate diagnostics, and completion status in a separate immutable experiment bundle.
+Reference its predictive support by hash and source run/origin. Include costs, numerical-code and
+dependency versions, sizes, repetitions, root seed, stream scheme, and support hash in the cache key.
+Keep experiment settings separately hashed from the forecasting protocol. Persist references through
+the workspace save/open lifecycle; a new seed invalidates only the Monte Carlo bundle. Save the
+completed experiment settings as well as result references. Saving large draw arrays is optional if streams reproduce under the locked environment. Do not mark a
+partial experiment complete. Raw customer-level data are not needed for this experiment.
+
 ## Monitoring
 
 Use signed weekly errors `e=actual-model forecast`. Positive errors mean underprediction. Monitor
@@ -363,10 +454,14 @@ settings, and source revision. A separate cost form reruns only inventory calcul
 Each run records code revision or source hash, Python/package versions, raw checksum, SQL and
 protocol hashes, normalized schema, exclusions, candidates and failed fits, origins, cutoff dates,
 daily/weekly predictions, actuals only when observed, error support with source origins, metrics,
-monitor reference and alerts, and inventory costs/decisions. Seeds default to 615 wherever
-randomness is introduced; the primary empirical computations are deterministic. Exact decisions
+monitor reference and alerts, inventory costs/decisions, and Monte Carlo stream/configuration and
+summary artifacts. The Monte Carlo experiment uses recorded seeded streams; primary forecast,
+empirical-distribution, and exact inventory computations remain deterministic. Exact decisions
 and candidate selection must reproduce; floating metrics use `atol=1e-8, rtol=1e-6` in the locked
 reference environment. Record rather than hide cross-platform numerical variation.
+
+The saved workspace additionally records completed Monte Carlo settings and bundle references;
+reopening a compatible experiment restores its results without new draws.
 
 ## Local Workspace Persistence and User Setup
 
@@ -455,6 +550,15 @@ user identity, isolation, and durable storage; the local design makes no cross-d
 - Documentation: follow clone/install/prepare/run/save/reopen from a clean environment and record
   versions and command outcomes. Only mark published commands working after this walkthrough.
 
+- Monte Carlo: deterministic fixed-draw mean/SE and paired-difference fixtures; draws confined to
+  support and shared by both policies; child-stream replay; degenerate support; seed changes do
+  not alter exact recommendations or model choice; snapshot/origin/seed cache invalidation.
+- Sample-average optimization: small fixtures match exhaustive integer search, including ties and
+  zero demand; evaluate every selected q_MC under exact support and verify regret >= -1e-8. Do not
+  assert that every random run improves with B or that every approximate optimizer equals q_exact.
+- Experiment persistence: completed configuration/results survive restart and reproduce with the
+  locked generator environment; missing or partial bundles are not shown as complete.
+
 These are planned checks, not test results from an implemented application.
 
 ## Milestones, Budget, and Risks
@@ -482,9 +586,11 @@ still cannot be met, report the specific incomplete scope rather than quietly cl
 | Nonstationary errors or wholesale orders | Show calibration/test diagnostics and EWMA limitations; no guarantee of reliable demand tails. |
 | Sales censored by unavailable inventory | Disclose availability assumption; simulate only; do not estimate verified lost demand. |
 | Selection optimism and limited test size | Separate test, frozen structure, no outcome-driven retuning or significance claims. |
-| Time budget | Keep local, one horizon, seven candidates, one monitor, one optimizer; defer hosting/CSV/Tableau. |
+| Time budget | Keep local, one horizon, seven models, one monitor and exact optimizer; Monte Carlo runs on demand for one product/week; defer hosting/CSV/Tableau. |
+| Monte Carlo misinterpretation | Show exact references and numerical errors; more draws cannot correct model error or prove business savings. |
 
 ## Complexity Tracking
 
-No constitution violations or extra infrastructure. Empirical expectations and the analytical
-integer quantile solution keep optimization smaller than a solver-based implementation.
+No constitution violations or extra infrastructure. Exact expectations and the integer quantile
+remain the primary solution. A separate bounded Monte Carlo module supplies numerical experiments
+without adding model fits, general-purpose solvers, or a multi-period inventory problem.
